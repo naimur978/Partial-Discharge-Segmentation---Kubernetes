@@ -1,0 +1,6 @@
+NAME                                                                                          CPU %     MEM USAGE / LIMIT     NET I/O           BLOCK I/O
+k8s_debug-pod_debug-pod_default_8604756b-9535-4ce1-ae97-14c4f1330f43_16                       0.00%     296KiB / 7.654GiB     0B / 0B           0B / 0B
+pd-pd-inference-api-1                                                                         0.24%     244.2MiB / 7.654GiB   3.44kB / 1.67kB   1.43MB / 815kB
+k8s_pd-inference_pd-inference-dd8fdbd8-k6xgd_default_d857df8e-93a6-4958-ad9d-5c080908056a_0   0.28%     275.7MiB / 4GiB       0B / 0B           52.5MB / 831kB
+k8s_pd-inference_pd-inference-dd8fdbd8-m48vq_default_61e9d57e-0e14-4606-ac55-b5fbb071f32a_0   0.26%     243.9MiB / 4GiB       0B / 0B           9.8MB / 815kB
+minikube                                                                                      4.00%     174.6MiB / 3.906GiB   1.8MB / 21.6MB    65MB / 4.42MB

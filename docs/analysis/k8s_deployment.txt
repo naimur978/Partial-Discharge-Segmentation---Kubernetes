@@ -1,0 +1,57 @@
+Name:                   pd-inference
+Namespace:              default
+CreationTimestamp:      Sun, 01 Jun 2025 00:55:01 +0200
+Labels:                 app=pd-inference
+Annotations:            deployment.kubernetes.io/revision: 5
+Selector:               app=pd-inference
+Replicas:               2 desired | 2 updated | 2 total | 2 available | 0 unavailable
+StrategyType:           RollingUpdate
+MinReadySeconds:        0
+RollingUpdateStrategy:  25% max unavailable, 25% max surge
+Pod Template:
+  Labels:  app=pd-inference
+  Containers:
+   pd-inference:
+    Image:      pd-api:latest
+    Port:       80/TCP
+    Host Port:  0/TCP
+    Limits:
+      cpu:     2
+      memory:  4Gi
+    Requests:
+      cpu:      1
+      memory:   2Gi
+    Liveness:   http-get http://:80/healthz delay=30s timeout=10s period=20s #success=1 #failure=3
+    Readiness:  http-get http://:80/healthz delay=15s timeout=5s period=10s #success=1 #failure=3
+    Startup:    http-get http://:80/healthz delay=20s timeout=1s period=10s #success=1 #failure=12
+    Environment:
+      WORKER_THREADS:     4
+      MAX_BATCH_SIZE:     8
+      TORCH_NUM_THREADS:  4
+      OMP_NUM_THREADS:    4
+    Mounts:
+      /app/model-cache from model-cache (rw)
+  Volumes:
+   model-cache:
+    Type:          EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:        Memory
+    SizeLimit:     1Gi
+  Node-Selectors:  <none>
+  Tolerations:     <none>
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Available      True    MinimumReplicasAvailable
+  Progressing    True    NewReplicaSetAvailable
+OldReplicaSets:  pd-inference-799f6fcf66 (0/0 replicas created), pd-inference-65b89b944f (0/0 replicas created), pd-inference-6566bbc9cd (0/0 replicas created), pd-inference-64b4db478b (0/0 replicas created)
+NewReplicaSet:   pd-inference-dd8fdbd8 (2/2 replicas created)
+Events:
+  Type    Reason             Age   From                   Message
+  ----    ------             ----  ----                   -------
+  Normal  ScalingReplicaSet  50m   deployment-controller  Scaled up replica set pd-inference-64b4db478b to 1
+  Normal  ScalingReplicaSet  50m   deployment-controller  Scaled down replica set pd-inference-6566bbc9cd to 0 from 1
+  Normal  ScalingReplicaSet  40m   deployment-controller  Scaled up replica set pd-inference-64b4db478b to 2 from 1
+  Normal  ScalingReplicaSet  40m   deployment-controller  Scaled up replica set pd-inference-dd8fdbd8 to 1
+  Normal  ScalingReplicaSet  40m   deployment-controller  Scaled down replica set pd-inference-64b4db478b to 1 from 2
+  Normal  ScalingReplicaSet  40m   deployment-controller  Scaled up replica set pd-inference-dd8fdbd8 to 2 from 1
+  Normal  ScalingReplicaSet  39m   deployment-controller  Scaled down replica set pd-inference-64b4db478b to 0 from 1

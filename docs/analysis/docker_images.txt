@@ -1,0 +1,5 @@
+REPOSITORY                                TAG        SIZE      CREATED AT
+pd-pd-inference-api                       latest     1.61GB    2025-06-01 19:09:00 +0200 CEST
+pd-api                                    latest     1.61GB    2025-06-01 19:09:00 +0200 CEST
+pd-inference                              latest     1.61GB    2025-06-01 18:25:50 +0200 CEST
+naimur978/pd-segmentation                 latest     3.19GB    2025-06-01 09:50:57 +0200 CEST

@@ -1,0 +1,3 @@
+NAME                          READY   STATUS    RESTARTS   AGE   IP           NODE             NOMINATED NODE   READINESS GATES
+pd-inference-dd8fdbd8-k6xgd   1/1     Running   0          40m   10.1.0.108   docker-desktop   <none>           <none>
+pd-inference-dd8fdbd8-m48vq   1/1     Running   0          41m   10.1.0.106   docker-desktop   <none>           <none>
