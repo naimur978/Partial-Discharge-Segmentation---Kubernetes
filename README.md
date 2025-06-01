@@ -1,133 +1,38 @@
 # PD Inference API
 
-Hi there! I've created this API for Partial Discharge (PD) signal analysis and inference. This service processes high-frequency signal data using my PyTorch UNet1D model to detect anomalies that might indicate equipment failure in high voltage systems.
+This API provides Partial Discharge (PD) signal analysis and inference capabilities. The service processes high-frequency signal data using a PyTorch UNet1D model to detect anomalies that might indicate equipment failure in high voltage systems.
 
-## Why I Built This
+## Purpose
 
-As someone working with high voltage equipment diagnostics, I needed a reliable way to detect partial discharges - those tiny electrical sparks that can indicate insulation problems before they cause catastrophic failures. This API provides both visual and text-based output to help identify these issues early.
+The system is designed for high voltage equipment diagnostics, providing a reliable way to detect partial discharges - electrical sparks that can indicate insulation problems before they cause catastrophic failures. The API provides both visual and text-based output to help identify these issues early.
 
-## Why Just the Model Weights?
+## Model Architecture
 
-I've chosen to save just the model weights (`best_model.pth`) rather than the entire model because:
+The implementation uses model weights (`best_model.pth`) rather than the entire model for the following reasons:
 
-1. It's much more efficient - the weights file is ~48MB while a full model save would be >150MB
-2. It keeps the Docker image smaller for faster deployments
-3. The model architecture is defined in code (in `pd_inference.py`), making it easier to adapt or modify
-4. It's the standard practice for PyTorch model deployment - define the architecture and load the weights
+1. Efficiency - the weights file is ~48MB while a full model save would be >150MB
+2. Smaller Docker image for faster deployments
+3. Model architecture defined in code (`pd_inference.py`) for easier adaptation
+4. Standard practice for PyTorch model deployment - define architecture and load weights
 
-This approach gives me more flexibility while keeping the deployment footprint small.
+This approach provides more flexibility while keeping the deployment footprint small.
 
 ## System Architecture & Analysis
 
 ### Client Request Flow
 
-```
-+----------+                               +-------------------+
-|          |   GET /                       |                   |
-|          +------------------------------>+ API Root          |
-|          |                               |                   |
-|          |   GET /healthz                +-------------------+
-|          +------------------------------>+                   |
-|          |                               | Health Check      |
-|          |   GET /test-text              |                   |
-|          +------------------------------>+-------------------+
-|          |                               |                   |
-| Client   |                               | Text Analysis     +--+
-|          |   GET /test                   |                   |  |
-|          +------------------------------>+-------------------+  |  +--------------+
-|          |                               |                   |  |  |              |
-|          |                               | Visual Analysis   +--+->+ Load Model   +--+
-|          |                               |                   |     |              |  |
-|          |                               +-------------------+     +--------------+  |
-|          |                                                                          |
-|          |                                                                          |
-|          |              +---------------------------------------------------+       |
-|          |              |                                                   |       |
-|          | <------------+ JSON Response                                     |       |
-|          |              |                                                   |       |
-|          |              +---------------------------------------------------+       |
-|          |                                                                          |
-|          |              +---------------------------------------------------+       |
-|          | <------------+ HTML/Image Response                               |       |
-|          |              |                                                   |       |
-|          |              +---------------------------------------------------+       |
-|          |                                                                          |
-+----------+                                                                          |
-                                          +------------------+                         |
-                                          |                  | <---------------------+
-                                          | PyTorch UNet1D   |
-                                          |                  |
-                                          +------------------+
-                                                   |
-                                                   v
-                                          +------------------+
-                                          |                  |
-                                          | best_model.pth   |
-                                          |                  |
-                                          +------------------+
-```
+![Client Request Flow](docs/Client_Request_Flow.png)
 
 ### Container Architecture
 
-```
-+--------------------------------------------------------------+
-|  Kubernetes Cluster                                          |
-|                                                              |
-|  +------------------------+      +------------------------+  |
-|  |  Pod 1                 |      |  Pod 2                 |  |
-|  |                        |      |                        |  |
-|  |  +------------------+  |      |  +------------------+  |  |
-|  |  | Container:       |  |      |  | Container:       |  |  |
-|  |  | pd-inference     |  |      |  | pd-inference     |  |  |
-|  |  |                  |  |      |  |                  |  |  |
-|  |  | +-------------+  |  |      |  | +-------------+  |  |  |
-|  |  | | Volume:     |  |  |      |  | | Volume:     |  |  |  |
-|  |  | | model-cache |  |  |      |  | | model-cache |  |  |  |
-|  |  | +-------------+  |  |      |  | +-------------+  |  |  |
-|  |  |                  |  |      |  |                  |  |  |
-|  |  +------------------+  |      |  +------------------+  |  |
-|  |         |              |      |         |              |  |
-|  |         v              |      |         v              |  |
-|  |       Port 80          |      |       Port 80          |  |
-|  |                        |      |                        |  |
-|  +------------------------+      +------------------------+  |
-|     ^                                  ^                     |
-|     |                                  |                     |
-|     +----------------------------------+                     |
-|                      |                                       |
-|  +------------------v-------------------+                    |
-|  |                                      |                    |
-|  |  Service: pd-inference-service       |                    |
-|  |                                      |                    |
-|  +------------------+-------------------+                    |
-|                     |                                        |
-|                     v                                        |
-|                NodePort: 30080                               |
-|                                                              |
-+--------------------------------------------------------------+
-                     ^
-                     |
-                     |
-                     |
-            +--------+--------+
-            |                 |
-            |     Client      |
-            |                 |
-            +-----------------+
-```
+![Container Architecture](docs/Container_Architecture.png)
 
 ### Resource Allocation
 
-| Component | CPU Request | CPU Limit | Memory Request | Memory Limit |
-|-----------|------------|-----------|---------------|--------------|
-| API Container | 1 CPU | 2 CPU | 2Gi | 4Gi |
-| Model Cache Volume | - | - | - | 1Gi |
-
-The resource allocation is designed to:
-- Handle computation-intensive PyTorch inference operations
-- Provide enough memory for processing large signal arrays
-- Ensure model loading and caching is efficient
-- Allow for parallel request processing with multiple worker threads
+- CPU: 1-2 cores per pod (2 pods)
+- Memory: 2-4GB per pod (2 pods) 
+- Model Cache: 1GB in-memory volume
+- Storage: Container image ~1.61GB
 
 ### Scaling Strategy
 
@@ -356,13 +261,13 @@ kubectl delete -f kubernetes/deployment.yaml -f kubernetes/service.yaml
   
   ![PD Signal Visualization](docs/pd_signal_visualization.png)
   
-  I created these visualizations to help engineers quickly identify PD patterns in signals. As you can see in the image:
+  These visualizations help engineers quickly identify PD patterns in signals. As seen in the image:
   
   - The top plots show the raw signal data
   - The middle plots display the filtered signal after preprocessing
-  - The bottom plots highlight regions where my model has detected potential partial discharges (in red boxes)
+  - The bottom plots highlight regions where the model has detected potential partial discharges (in red boxes)
   
-  This visual representation makes it much easier to identify patterns and verify the model's detection accuracy.
+  This visual representation simplifies pattern identification and verification of the model's detection accuracy.
   [Detailed documentation for the `/test` endpoint](docs/test-endpoint.md)
 
 - **`/test-text`** - Text-based test endpoint (returns JSON analysis)
@@ -396,25 +301,25 @@ kubectl delete -f kubernetes/deployment.yaml -f kubernetes/service.yaml
   }
   ```
   
-  I designed this structured output to be perfect for programmatic analysis or integration with monitoring systems. The JSON format makes it easy to process the data further or store it in a database.
+  This structured output is ideal for programmatic analysis or integration with monitoring systems. The JSON format allows for easy data processing or storage in a database.
   [Detailed documentation for the `/test-text` endpoint](docs/test-text-endpoint.md)
 
 ## Environment Variables
 
-I've made the application configurable with these environment variables that you can customize in the Kubernetes deployment or docker-compose.yml:
+The application is configurable with these environment variables that can be customized in the Kubernetes deployment or docker-compose.yml:
 
 - **`WORKER_THREADS`** - Number of worker threads for inference (default: 4)
 - **`MAX_BATCH_SIZE`** - Maximum batch size for processing (default: 8)
 - **`TORCH_NUM_THREADS`** - Number of PyTorch threads (default: 4)
 - **`OMP_NUM_THREADS`** - Number of OpenMP threads (default: 4)
 
-I recommend adjusting these based on your hardware capabilities. For servers with more CPUs, increasing these values can significantly improve processing speed.
+Adjusting these based on hardware capabilities is recommended. For servers with more CPUs, increasing these values can significantly improve processing speed.
 
 ## Development
 
 ### Running from Source (Without Docker)
 
-If you want to run the application directly on your machine like I often do during development:
+To run the application directly on a machine:
 
 ```bash
 # Create a virtual environment
@@ -433,32 +338,32 @@ uvicorn app:app --reload --host 0.0.0.0 --port 8000
 
 ### Modifying the API
 
-When I'm making changes to the API:
+When making changes to the API:
 
-1. I edit the files in the `api` directory
-2. With the `--reload` flag, the server automatically picks up my changes
-3. For structural changes, I restart the application
+1. Edit the files in the `api` directory
+2. With the `--reload` flag, the server automatically picks up changes
+3. For structural changes, restart the application
 
-I've structured the code to separate the inference logic (`pd_inference.py`) from the API endpoints (`app.py`) to make it easier to modify either component independently.
+The code is structured to separate the inference logic (`pd_inference.py`) from the API endpoints (`app.py`) to simplify independent modification of either component.
 
 ## Troubleshooting
 
-Here are some issues I've encountered and how to solve them:
+Here are some issues encountered and solutions:
 
 ### Docker Issues
 
-- **Image Not Found**: If you see this error, make sure you've built the Docker image with `docker build -t pd-api:latest -f docker/Dockerfile .`
-- **Port Conflicts**: I've set the API to use port 8000, but if that's already in use on your machine, you can modify the port mapping in docker-compose.yml
+- **Image Not Found**: If this error occurs, ensure the Docker image is built with `docker build -t pd-api:latest -f docker/Dockerfile .`
+- **Port Conflicts**: The API uses port 8000, but if that's in use, modify the port mapping in docker-compose.yml
 
 ### Kubernetes Issues
 
-- **Pod Crashes**: I've found the most useful debugging technique is to check pod logs with `kubectl logs -l app=pd-inference`
-- **Resource Limits**: The model processing can be memory-intensive. If you see pods being OOMKilled, I recommend increasing memory limits in kubernetes/deployment.yaml
-- **Service Unavailable**: On macOS and Windows with Docker Desktop, NodePort services often need port-forwarding: `kubectl port-forward service/pd-inference-service 8080:80`
+- **Pod Crashes**: The most useful debugging technique is to check pod logs with `kubectl logs -l app=pd-inference`
+- **Resource Limits**: Model processing can be memory-intensive. If pods are OOMKilled, increase memory limits in kubernetes/deployment.yaml
+- **Service Unavailable**: On macOS and Windows with Docker Desktop, NodePort services often need port-forwarding: `kubectl port-forward service/p-inference-service 8080:80`
 
 ### API Issues
 
-- **Model Loading Errors**: My first troubleshooting step is always to verify the model file exists in the resources directory
-- **Memory Issues**: If you're processing larger signals than I anticipated, try reducing the batch size or other processing parameters through the environment variables
+- **Model Loading Errors**: The first troubleshooting step is to verify the model file exists in the resources directory
+- **Memory Issues**: If processing larger signals, try reducing the batch size or other processing parameters through the environment variables
 
-If you encounter any other issues, feel free to contact me. I'm always looking to improve this system!
+For any other issues, feel free to reach out for assistance. Continuous improvement of this system is the goal!
