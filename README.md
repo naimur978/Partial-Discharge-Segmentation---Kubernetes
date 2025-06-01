@@ -129,13 +129,13 @@ chmod +x run-local.sh
 
 ```bash
 # Build and start the container
-docker-compose up --build -d
+docker compose -f docker/docker-compose.yml up --build -d
 
 # Check the logs
-docker-compose logs -f
+docker compose -f docker/docker-compose.yml logs -f
 
 # Stop the container when done
-docker-compose down
+docker compose -f docker/docker-compose.yml down
 ```
 
 The API will be available at http://localhost:8000
@@ -168,6 +168,27 @@ chmod +x deploy.sh
 
 # Run the deployment script
 ./deploy.sh
+```
+
+The service will be available at http://localhost:30080
+
+### Testing the Kubernetes deployment
+
+```bash
+# Test the health check endpoint
+curl -X GET http://localhost:30080/healthz
+
+# Test the root endpoint
+curl -X GET http://localhost:30080/
+
+# Test the text-based analysis endpoint
+curl -X GET http://localhost:30080/test-text
+
+# View logs from the pods
+kubectl logs -l app=pd-inference
+
+# If you need to delete the deployment
+kubectl delete -f kubernetes/deployment.yaml -f kubernetes/service.yaml
 ```
 
 ### Option 2: Manual deployment
@@ -207,48 +228,26 @@ kubectl get services
 kubectl wait --for=condition=available --timeout=300s deployment/pd-inference
 ```
 
-6. Since Kubernetes in Docker Desktop may not expose NodePort services directly, set up port-forwarding:
+6. The service will be available at port 30080:
 
 ```bash
-# Forward the service port to your local machine
-kubectl port-forward service/pd-inference-service 8080:80
-```
-
-7. The service will be available at:
-
-```
-http://localhost:8080
-```
-
-### Testing the Kubernetes deployment
-
-```bash
-# Test the health check endpoint
-curl -X GET http://localhost:8080/healthz
-
-# Test the root endpoint
-curl -X GET http://localhost:8080/
-
-# Test the text-based analysis endpoint
-curl -X GET http://localhost:8080/test-text
-
-# View logs from the pods
-kubectl logs -l app=pd-inference
-
-# If you need to delete the deployment
-kubectl delete -f kubernetes/deployment.yaml -f kubernetes/service.yaml
+# Test the deployment
+curl -X GET http://localhost:30080/healthz
 ```
 
 ## API Endpoints
 
 - **`/`** - Root endpoint (returns a welcome message)
   ```bash
-  curl -X GET http://localhost:8080/
+  # For local deployment
+  curl -X GET http://localhost:8000/
+  # For Kubernetes deployment
+  curl -X GET http://localhost:30080/
   ```
 
 - **`/healthz`** - Health check endpoint (verifies if the model is loaded)
   ```bash
-  curl -X GET http://localhost:8080/healthz
+  curl -X GET http://localhost:30080/healthz
   ```
 
 - **`/test`** - Visual test endpoint (returns HTML with visualizations)
@@ -272,7 +271,7 @@ kubectl delete -f kubernetes/deployment.yaml -f kubernetes/service.yaml
 
 - **`/test-text`** - Text-based test endpoint (returns JSON analysis)
   ```bash
-  curl -X GET http://localhost:8080/test-text
+  curl -X GET http://localhost:30080/test-text
   ```
   
   This endpoint returns a detailed JSON analysis of the signal data. Here's a sample output:
@@ -288,7 +287,6 @@ kubectl delete -f kubernetes/deployment.yaml -f kubernetes/service.yaml
         "regions": [
           {"start": 26, "end": 79, "duration": 53},
           {"start": 1574, "end": 1579, "duration": 5},
-          // More regions...
         ],
         "signal_stats": {
           "max_amplitude": 0.17049315571784973,
@@ -296,7 +294,6 @@ kubectl delete -f kubernetes/deployment.yaml -f kubernetes/service.yaml
           "std_amplitude": 0.005596190225332975
         }
       },
-      // More samples...
     ]
   }
   ```
