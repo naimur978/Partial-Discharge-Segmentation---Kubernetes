@@ -308,10 +308,10 @@ kubectl delete -f kubernetes/deployment.yaml -f kubernetes/service.yaml
 
 The application is configurable with these environment variables that can be customized in the Kubernetes deployment or docker-compose.yml:
 
-- **`WORKER_THREADS`** - Number of worker threads for inference (default: 4)
-- **`MAX_BATCH_SIZE`** - Maximum batch size for processing (default: 8)
-- **`TORCH_NUM_THREADS`** - Number of PyTorch threads (default: 4)
-- **`OMP_NUM_THREADS`** - Number of OpenMP threads (default: 4)
+- **WORKER_THREADS** - Number of worker threads for inference (default: 4)
+- **MAX_BATCH_SIZE** - Maximum batch size for processing (default: 8)
+- **TORCH_NUM_THREADS** - Number of PyTorch threads (default: 4)
+- **OMP_NUM_THREADS** - Number of OpenMP threads (default: 4)
 
 Adjusting these based on hardware capabilities is recommended. For servers with more CPUs, increasing these values can significantly improve processing speed.
 
