@@ -1,0 +1,103 @@
+PD Inference API - Kubernetes Deployment Analysis
+==============================================
+
+Deployment Configuration:
+-----------------------
+
+- Name: pd-inference
+- Namespace: default
+- Replicas: 2 (all running and available)
+- Image: pd-api:latest
+- Strategy: RollingUpdate (25% max unavailable, 25% max surge)
+- Resource Requests: 1 CPU, 2Gi memory
+- Resource Limits: 2 CPU, 4Gi memory
+- Port: 80/TCP
+
+Health Probes:
+------------
+- Liveness: HTTP GET /healthz (delay=30s, timeout=10s, period=20s)
+- Readiness: HTTP GET /healthz (delay=15s, timeout=5s, period=10s)
+- Startup: HTTP GET /healthz (delay=20s, timeout=1s, period=12 failures allowed)
+
+Environment Variables:
+-------------------
+- WORKER_THREADS: 4
+- MAX_BATCH_SIZE: 8
+- TORCH_NUM_THREADS: 4
+- OMP_NUM_THREADS: 4
+
+Volumes:
+-------
+- model-cache (EmptyDir, Memory, 1Gi limit)
+
+Service Configuration:
+--------------------
+- Name: pd-inference-service
+- Type: NodePort
+- Port: 80 -> 30080
+- Selector: app=pd-inference
+- Endpoints: 10.1.0.106:80, 10.1.0.108:80
+- IP: 10.110.128.218
+
+Pod Status:
+---------
+- pd-inference-dd8fdbd8-k6xgd: Running (IP: 10.1.0.108)
+- pd-inference-dd8fdbd8-m48vq: Running (IP: 10.1.0.106)
+- Both pods on node: docker-desktop
+
+Deployment Analysis:
+-----------------
+
+1. High Availability:
+   - Two replicas provide redundancy
+   - Anti-affinity rules (when available) would distribute pods across nodes
+   - RollingUpdate strategy ensures zero-downtime deployments
+
+2. Resource Management:
+   - Appropriate resource requests and limits are set
+   - Memory-backed volume for model cache improves performance
+   - CPU and memory allocation accounts for PyTorch's requirements
+
+3. Health Monitoring:
+   - Comprehensive health check strategy with all three probe types
+   - Liveness probe ensures unhealthy containers are restarted
+   - Readiness probe prevents traffic to unprepared pods
+   - Startup probe allows for longer initialization time
+
+4. Service Exposure:
+   - NodePort service provides external access
+   - Internal service for pod-to-pod communication
+   - Port forwarding needed for Docker Desktop Kubernetes
+
+5. Configuration Flexibility:
+   - Environment variables allow for runtime tuning
+   - Worker thread and batch size can be adjusted without rebuilding
+   - PyTorch threading parameters properly configured
+
+Recommendations for Improvement:
+-----------------------------
+
+1. Security Enhancements:
+   - Add NetworkPolicy to restrict pod communication
+   - Implement Pod Security Contexts
+   - Consider running containers as non-root
+
+2. Observability:
+   - Add Prometheus annotations for metrics scraping
+   - Configure logging to external systems
+   - Implement distributed tracing
+
+3. Resilience:
+   - Add pod disruption budgets
+   - Implement retry logic for transient errors
+   - Set appropriate termination grace periods
+
+4. Performance:
+   - Fine-tune CPU and memory based on actual usage patterns
+   - Consider GPU acceleration for inference if available
+   - Implement horizontal pod autoscaling
+
+5. Deployment Efficiency:
+   - Use Helm charts for parameterized deployments
+   - Implement CI/CD pipeline for automatic deployments
+   - Consider using Kustomize for environment-specific configurations

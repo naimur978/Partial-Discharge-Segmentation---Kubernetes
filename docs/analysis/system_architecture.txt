@@ -1,0 +1,68 @@
+PD Inference API - System Architecture
+====================================
+
+Client Request Flow:
+-------------------
+                                         │
+                                         ▼
+┌────────────────┐       ┌─────────────────────────────┐       ┌─────────────────────┐
+│                │       │                             │       │                     │
+│   Web Client   │ ──►   │  Kubernetes NodePort        │ ──►   │  pd-inference       │
+│   or API Call  │       │  Service (30080)            │       │  Service (80)       │
+│                │       │                             │       │                     │
+└────────────────┘       └─────────────────────────────┘       └──────────┬──────────┘
+                                                                         │
+                                                                         ▼
+                         ┌─────────────────────────────┐       ┌─────────────────────┐
+                         │                             │       │                     │
+                         │  pd-inference Pod 1         │ ◄──   │  Load Balancer      │
+                         │  (Docker Container)         │       │                     │
+                         │                             │       └─────────┬───────────┘
+                         └─────────────────────────────┘                 │
+                                                                         │
+                         ┌─────────────────────────────┐                 │
+                         │                             │                 │
+                         │  pd-inference Pod 2         │ ◄───────────────┘
+                         │  (Docker Container)         │
+                         │                             │
+                         └─────────────────────────────┘
+
+Container Architecture:
+---------------------
+┌───────────────────────────────────────────────────────────────────────┐
+│                                                                       │
+│  pd-api Docker Container                                              │
+│                                                                       │
+│  ┌───────────────┐     ┌────────────────┐     ┌───────────────────┐   │
+│  │               │     │                │     │                   │   │
+│  │  FastAPI      │ ──► │ pd_inference.py│ ──► │  PyTorch UNet1D   │   │
+│  │  (app.py)     │     │                │     │  Model            │   │
+│  │               │     │                │     │                   │   │
+│  └───────┬───────┘     └────────┬───────┘     └─────────┬─────────┘   │
+│          │                      │                       │             │
+│          │                      │                       │             │
+│          ▼                      ▼                       ▼             │
+│  ┌───────────────┐     ┌────────────────┐     ┌───────────────────┐   │
+│  │               │     │                │     │                   │   │
+│  │ API Endpoints │     │ Signal         │     │ Model Weights     │   │
+│  │ - /           │     │ Processing     │     │ (best_model.pth)  │   │
+│  │ - /healthz    │     │ Functions      │     │                   │   │
+│  │ - /test       │     │                │     │                   │   │
+│  │ - /test-text  │     │                │     │                   │   │
+│  │               │     │                │     │                   │   │
+│  └───────────────┘     └────────────────┘     └───────────────────┘   │
+│                                                                       │
+└───────────────────────────────────────────────────────────────────────┘
+
+Resource Allocation:
+------------------
+- CPU: 1-2 cores per pod (2 pods)
+- Memory: 2-4GB per pod (2 pods)
+- Model Cache: 1GB in-memory volume
+- Storage: Container image ~1.61GB
+
+Scaling Strategy:
+---------------
+- Horizontal Pod Autoscaler could be configured to scale based on CPU utilization
+- Kubernetes ReplicaSet maintains desired number of pod replicas
+- Anti-affinity rules distribute pods across nodes for better availability

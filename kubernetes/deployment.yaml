@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pd-inference
+  labels:
+    app: pd-inference
+spec:
+  replicas: 2  # Increased to handle more requests in parallel
+  selector:
+    matchLabels:
+      app: pd-inference
+  template:
+    metadata:
+      labels:
+        app: pd-inference
+    spec:
+      affinity:
+        podAntiAffinity:  # Distribute pods across nodes for better availability
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - pd-inference
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+      - name: pd-inference
+        image: pd-api:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "2Gi"      # Increased for handling larger data arrays
+            cpu: "1"           # Increased CPU allocation
+          limits:
+            memory: "4Gi"      # Higher memory limit to prevent OOM issues
+            cpu: "2"           # Higher CPU limit for computation-intensive tasks
+        env:
+        - name: WORKER_THREADS  # Control worker threads for inference
+          value: "4"
+        - name: MAX_BATCH_SIZE  # Control batch size for optimal processing
+          value: "8"
+        - name: TORCH_NUM_THREADS  # Control PyTorch threading behavior
+          value: "4"
+        - name: OMP_NUM_THREADS  # OpenMP threading control
+          value: "4"
+        volumeMounts:
+        - name: model-cache
+          mountPath: /app/model-cache
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 15  # Increased to allow more time for model loading
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 30  # Increased to prevent premature restarts
+          periodSeconds: 20
+          timeoutSeconds: 10
+          failureThreshold: 3
+        startupProbe:  # Added to handle slow starts
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          failureThreshold: 12  # Allow 2 minutes for startup (12 * 10 = 120s)
+      volumes:
+      - name: model-cache
+        emptyDir:
+          medium: Memory  # Use memory-backed storage for faster model loading
+          sizeLimit: 1Gi

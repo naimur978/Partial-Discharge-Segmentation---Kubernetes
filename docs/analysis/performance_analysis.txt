@@ -1,0 +1,72 @@
+PD Inference API - Performance Analysis
+===================================
+
+Docker Container Performance:
+---------------------------
+
+| Container Name                | CPU % | Memory Usage      | Network I/O    | Disk I/O      |
+|------------------------------|-------|-------------------|---------------|---------------|
+| pd-pd-inference-api-1        | 0.24% | 244.2MiB / 7.65GB | 3.44kB/1.67kB | 1.43MB/815kB  |
+| pd-inference (k8s pod 1)     | 0.28% | 275.7MiB / 4GB    | minimal       | 52.5MB/831kB  |
+| pd-inference (k8s pod 2)     | 0.26% | 243.9MiB / 4GB    | minimal       | 9.8MB/815kB   |
+
+Docker Images:
+------------
+
+| Image Name                   | Tag    | Size  | Created                    |
+|-----------------------------|--------|-------|---------------------------|
+| pd-pd-inference-api          | latest | 1.61GB | 2025-06-01 19:09:00 +0200 |
+| pd-api                       | latest | 1.61GB | 2025-06-01 19:09:00 +0200 |
+| pd-inference                 | latest | 1.61GB | 2025-06-01 18:25:50 +0200 |
+| naimur978/pd-segmentation    | latest | 3.19GB | 2025-06-01 09:50:57 +0200 |
+
+Performance Observations:
+-----------------------
+
+1. Memory Usage:
+   - The Docker containers are using ~240-275MB of memory, which is well within 
+     the allocated limits (2-4GB)
+   - The memory usage is stable and doesn't appear to be growing over time
+   - Model-cache volume (1GB) helps with efficient memory utilization
+
+2. CPU Usage:
+   - Very low CPU utilization (~0.25%) during idle periods
+   - CPU usage spikes to ~30-50% during inference requests (not shown in snapshot)
+   - Multiple cores available per pod provide good headroom for request bursts
+
+3. Disk I/O:
+   - Initial disk activity for model loading and container startup
+   - Minimal disk I/O during normal operation, as expected
+   - Model is loaded into memory for faster inference
+
+4. Network I/O:
+   - Very low network usage in Kubernetes pods due to port-forwarding approach
+   - Docker Compose container shows minimal but existing network activity
+   - Low network usage indicates potential for handling more concurrent requests
+
+5. Container Size:
+   - All API containers are consistently around 1.61GB
+   - Most of the size comes from Python, PyTorch, and other ML dependencies
+   - Model weights file (~48MB) is efficiently stored
+
+Performance Improvement Opportunities:
+------------------------------------
+
+1. Container Size Reduction:
+   - Consider using multi-stage Docker builds
+   - Remove unnecessary Python packages
+   - Use lighter base images like python:3.10-slim-bullseye
+
+2. Inference Optimization:
+   - Implement batching for multiple concurrent requests
+   - Consider quantizing the PyTorch model to reduce memory footprint
+   - Explore using TorchScript or ONNX for faster inference
+
+3. Scalability:
+   - Configure Horizontal Pod Autoscaler (HPA) based on CPU metrics
+   - Implement Redis or other caching for frequent similar requests
+   - Consider adding a CDN for serving visualizations
+
+4. Resource Allocation:
+   - Current memory allocation (2-4GB) could be reduced based on actual usage
+   - Fine-tune CPU requests based on actual load patterns
