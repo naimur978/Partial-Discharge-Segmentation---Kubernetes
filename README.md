@@ -107,6 +107,9 @@ Container size optimization opportunities:
 ## Prerequisites
 
 - Docker Desktop with Kubernetes enabled (for Kubernetes deployment)
+  - This project uses Docker Desktop Kubernetes as a simpler alternative to Minikube
+  - On Apple Silicon (M1/M2/M3) Macs, Docker Desktop uses Apple's Virtualization.framework as the hypervisor
+  - On Intel Macs, Docker Desktop would use Hyperkit as the hypervisor
 - kubectl command-line tool configured for your Kubernetes cluster
 - Docker and Docker Compose for local development
 - At least 4GB of available memory for the container
@@ -157,6 +160,12 @@ open http://localhost:8000/test
 ```
 
 ## Running in Kubernetes
+
+This project uses Docker Desktop's built-in Kubernetes instead of Minikube. Docker Desktop Kubernetes:
+- Uses Apple's Virtualization.framework as the hypervisor on Apple Silicon Macs
+- Provides a lightweight, integrated Kubernetes environment
+- Shares the same container images with your local Docker daemon
+- Requires port-forwarding for NodePort services (handled in deploy.sh)
 
 ### Option 1: Using the deploy script (Recommended)
 
@@ -356,7 +365,11 @@ Here are some issues encountered and solutions:
 
 - **Pod Crashes**: The most useful debugging technique is to check pod logs with `kubectl logs -l app=pd-inference`
 - **Resource Limits**: Model processing can be memory-intensive. If pods are OOMKilled, increase memory limits in kubernetes/deployment.yaml
-- **Service Unavailable**: On macOS and Windows with Docker Desktop, NodePort services often need port-forwarding: `kubectl port-forward service/p-inference-service 8080:80`
+- **Service Unavailable**: On macOS and Windows with Docker Desktop, NodePort services often need port-forwarding: `kubectl port-forward service/pd-inference-service 30080:80`
+- **Virtualization Issues**: If Docker Desktop Kubernetes doesn't start properly:
+  - On Apple Silicon Macs, ensure Virtualization.framework is functioning correctly
+  - Try restarting Docker Desktop
+  - Verify you have sufficient memory allocated to Docker in preferences
 
 ### API Issues
 
